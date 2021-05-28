@@ -1,3 +1,9 @@
+.idea
+src/FileIO/bin
+src/FileIO/obj
+tests/FileIO.Benchmarks/bin
+tests/FileIO.Benchmarks/obj
+
 # Prerequisites
 *.d
 
