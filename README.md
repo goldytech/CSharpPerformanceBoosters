@@ -1,5 +1,7 @@
 # CSharpPerformanceBoosters
 
+Blog post at https://goldytech.dev/2021/05/31/performance-booster-with-system-io-pipelines-in-c/
+
 ###### Highly Performant C# code with benchmark results
 
 #### File I/O

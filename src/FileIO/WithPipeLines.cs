@@ -13,9 +13,9 @@ namespace FileIO
         /// <summary>
         /// Process the file using System.IO.Pipelines
         /// </summary>
-        /// <param name="filePath"></param>
-        /// <param name="employeeRecords"></param>
-        /// <returns></returns>
+        /// <param name="filePath">The file path </param>
+        /// <param name="employeeRecords">The Employee Array in which file data will be processed.</param>
+        /// <returns>PipeReader Sequence Position</returns>
         public async Task<int> ProcessFileAsync(string filePath, Employee[] employeeRecords)
         {
             var position = 0;
@@ -40,7 +40,7 @@ namespace FileIO
                 }
             }
 
-            await pipeReader.CompleteAsync();
+            await pipeReader.CompleteAsync(); // marking pipereader as Completed
             return position;
         }
         
@@ -73,9 +73,9 @@ namespace FileIO
             private const string ColumnHeaders = "Name,Email,DateOfJoining,Salary,Age";
             public static Employee? ParseLine(ReadOnlySpan<byte> line)
             {
-                if (Encoding.UTF8.GetString(line).Contains(ColumnHeaders))
+                if (Encoding.UTF8.GetString(line).Contains(ColumnHeaders)) // Ignore the Header row
                 {
-                    return null;
+                    return null; 
                 }
                 var fieldCount = 1;
 
@@ -84,7 +84,7 @@ namespace FileIO
                 while (fieldCount <= 5) // we have five fields in csv file
                 {
                      var comaAt = line.IndexOf(Coma);
-                     if (comaAt < 0)
+                     if (comaAt < 0) // No more comas are found we have reached the last field.
                      {
                          comaAt = line.Length;
                      }

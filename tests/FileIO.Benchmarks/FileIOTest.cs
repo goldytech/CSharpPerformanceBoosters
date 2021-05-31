@@ -24,16 +24,16 @@ namespace FileIO.Benchmarks
         {
            
             var pool = ArrayPool<Employee>.Shared;
-            Employee[] newData = pool.Rent(100000);
+            var employeeRecords = pool.Rent(100000);
             var pipeLinesTest = new WithPipeLines();
 
             try
             {
-                await pipeLinesTest.ProcessFileAsync(_filePath, newData);
+                await pipeLinesTest.ProcessFileAsync(_filePath, employeeRecords);
             }
             finally
             {
-                pool.Return(newData, clearArray: true);
+                pool.Return(employeeRecords, clearArray: true);
             }
         }
 
