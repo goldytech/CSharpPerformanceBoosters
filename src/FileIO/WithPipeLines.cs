@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Buffers;
+using System.Buffers.Text;
 using System.IO;
 using System.IO.Pipelines;
 using System.Text;
@@ -28,9 +29,8 @@ namespace FileIO
 
                 // convert to Buffer
                 var fileDataBuffer = fileData.Buffer;
-                
-               
-                var sequencePosition = ParseLines(employeeRecords, ref fileDataBuffer, ref position);
+
+                var sequencePosition = ParseLines(employeeRecords, fileDataBuffer, ref position);
 
                 pipeReader.AdvanceTo(sequencePosition, fileDataBuffer.End);
 
@@ -43,25 +43,18 @@ namespace FileIO
             await pipeReader.CompleteAsync(); // marking pipereader as Completed
             return position;
         }
-        
-         private static SequencePosition ParseLines(Employee[] employeeRecords, ref ReadOnlySequence<byte> buffer, ref int position)
-        {
-            var newLine = Encoding.UTF8.GetBytes(Environment.NewLine).AsSpan();
 
+        private static SequencePosition ParseLines(Employee[] employeeRecords, in ReadOnlySequence<byte> buffer, ref int position)
+        {
             var reader = new SequenceReader<byte>(buffer);
 
-            while (!reader.End)
+            // Read the whole line till the new line is found
+            while (reader.TryReadTo(out ReadOnlySpan<byte> line, (byte)'\n', true))
             {
-                // Read the whole line till the new line is found
-                if (!reader.TryReadToAny(out ReadOnlySpan<byte> line, newLine, true))
-                {
-                    break; // we don't have a delimiter (newline) in the current data
-                }
+                var employee = LineParser.ParseLine(line); // we have a line to parse
 
-                var parsedLine = LineParser.ParseLine(line); // we have a line to parse
-
-                if (parsedLine is { }) // if the returned value is valid Employee object
-                    employeeRecords[position++] = (Employee) parsedLine;
+                if (employee is { }) // if the returned value is valid Employee object
+                    employeeRecords[position++] = employee.Value;
             }
 
             return reader.Position; // returning the Last position of the reader
@@ -69,65 +62,80 @@ namespace FileIO
 
         private static class LineParser
         {
-            private const byte Coma = (byte) ',';
-            private const string ColumnHeaders = "Name,Email,DateOfJoining,Salary,Age";
+            private const byte Coma = (byte)',';
+            private static readonly byte[] ColumnHeaders = Encoding.UTF8.GetBytes("Name,Email,DateOfJoining,Salary,Age");
+
             public static Employee? ParseLine(ReadOnlySpan<byte> line)
             {
-                if (Encoding.UTF8.GetString(line).Contains(ColumnHeaders)) // Ignore the Header row
+                // REVIEW: There are better ways to do this
+                if (line.IndexOf(ColumnHeaders) >= 0) // Ignore the Header row
                 {
-                    return null; 
+                    return null;
                 }
+
+                // Trim \r (if it exists)
+                line = line.TrimEnd((byte)'\r');
+
                 var fieldCount = 1;
 
                 var record = new Employee();
 
                 while (fieldCount <= 5) // we have five fields in csv file
                 {
-                     var comaAt = line.IndexOf(Coma);
-                     if (comaAt < 0) // No more comas are found we have reached the last field.
-                     {
-                         comaAt = line.Length;
-                     }
+                    var comaAt = line.IndexOf(Coma);
+                    if (comaAt < 0) // No more comas are found we have reached the last field.
+                    {
+                        comaAt = line.Length;
+                    }
 
-                     switch (fieldCount)
-                     {
-                         case 1:
-                         {
-                             var value = Encoding.UTF8.GetString(line[..comaAt]);
-                             record.Name = value;
-                             break;
-                         }
-                         case 2:
-                         {
-                             var value = Encoding.UTF8.GetString(line[..comaAt]);
-                             record.Email = value;
-                             break;
-                         }
-                         case 3:
-                         {
-                             var value = Encoding.UTF8.GetString(line[..comaAt]);
-                             record.DateOfJoining = Convert.ToDateTime(value);
-                             break;
-                         }
-                        
-                         case 4:
-                         {
-                             var value = Encoding.UTF8.GetString(line[..comaAt]);
-                             record.Salary = Convert.ToDouble(value);
-                             break;
-                         }
-                        
-                         case 5:
-                         {
-                             var value = Encoding.UTF8.GetString(line[..comaAt]);
-                             record.Age = Convert.ToInt16(value);
-                             return record;
-                         }
-                     }
+                    switch (fieldCount)
+                    {
+                        case 1:
+                            {
+                                var value = Encoding.UTF8.GetString(line[..comaAt]);
+                                record.Name = value;
+                                break;
+                            }
+                        case 2:
+                            {
+                                var value = Encoding.UTF8.GetString(line[..comaAt]);
+                                record.Email = value;
+                                break;
+                            }
+                        case 3:
+                            {
+                                var buffer = line[..comaAt];
+                                if (Utf8Parser.TryParse(buffer, out DateTime value, out var bytesConsumed))
+                                {
+                                    record.DateOfJoining = value;
+                                }
+                                break;
+                            }
 
-                     line = line[(comaAt + 1)..]; // slice past field
+                        case 4:
+                            {
+                                var buffer = line[..comaAt];
+                                if (Utf8Parser.TryParse(buffer, out double value, out var bytesConsumed))
+                                {
+                                    record.Salary = value;
+                                }
+                                break;
+                            }
 
-                     fieldCount++;
+                        case 5:
+                            {
+                                var buffer = line[..comaAt];
+                                if (Utf8Parser.TryParse(buffer, out short value, out var bytesConsumed))
+                                {
+                                    record.Age = value;
+                                }
+                                return record;
+                            }
+                    }
+
+                    line = line[(comaAt + 1)..]; // slice past field
+
+                    fieldCount++;
                 }
 
                 return record;

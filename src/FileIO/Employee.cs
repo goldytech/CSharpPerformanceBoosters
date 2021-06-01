@@ -5,7 +5,7 @@ namespace FileIO
     /// <summary>
     /// Employee Record
     /// </summary>
-    public struct Employee 
+    public struct Employee
     {
         /// <summary>
         /// Name of the Employee
@@ -18,7 +18,5 @@ namespace FileIO
         public DateTime DateOfJoining { get; set; }
         public double Salary { get; set; }
         public int Age { get; set; }
-        
-        
     }
 }
