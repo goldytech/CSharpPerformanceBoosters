@@ -26,4 +26,14 @@ Intel Core i9-9880H CPU 2.30GHz, 1 CPU, 16 logical and 8 physical cores
 | AsyncStream | 223.0 ms | 4.40 ms | 8.36 ms |    2 |  8000.0000 | 3000.0000 | 1000.0000 |     64 MB |
 |   CsvHelper | 228.5 ms | 4.51 ms | 7.29 ms |    3 | 11000.0000 | 5000.0000 | 3000.0000 |     77 MB |
 
+# Contribute
 
+Contributions are always welcome! Please create a PR to add Github Profile.
+
+## :pencil: License
+
+This project is licensed under [MIT](https://opensource.org/licenses/MIT) license.
+
+## :man_astronaut: Show your support
+
+Give a ⭐️ if this project helped you!
