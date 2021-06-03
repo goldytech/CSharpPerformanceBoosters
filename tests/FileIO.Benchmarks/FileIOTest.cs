@@ -58,5 +58,21 @@ namespace FileIO.Benchmarks
             var employeesList = csvHelper.ProcessFileAsync(_filePath);
 
         }
+
+        [Benchmark]
+        public void Sylvan()
+        {
+            var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
+            _filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
+            var sylv = new WithSylvanLib();
+            var pool = ArrayPool<Employee>.Shared;
+            var employeeRecords = pool.Rent(100000);
+
+            try {
+                sylv.ProcessFile(_filePath, employeeRecords);
+            } finally {
+                pool.Return(employeeRecords, true);
+            }
+        }
     }
 }
