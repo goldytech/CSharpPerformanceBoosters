@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -22,7 +23,8 @@ namespace FileIO.Benchmarks
         [Benchmark]
         public async Task PipeLines()
         {
-           
+           // var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
+            //_filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
             var pool = ArrayPool<Employee>.Shared;
             var employeeRecords = pool.Rent(100000);
             var pipeLinesTest = new WithPipeLines();
@@ -38,17 +40,20 @@ namespace FileIO.Benchmarks
         }
 
         [Benchmark]
-        public async Task AsyncStream()
+        public async Task<IList<Employee>> AsyncStream()
         { 
+          //  var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
+           // _filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
             var asyncStream = new WithAsyncStreams();
            var employees = await asyncStream.ProcessStreamAsync(_filePath);
+           return employees;
         }
 
         [Benchmark]
         public void CsvHelper()
         {
-            var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
-            _filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
+          //  var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
+            //_filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
             var csvHelper = new WithCsvHelperLib();
             var employeesList = csvHelper.ProcessFileAsync(_filePath);
 

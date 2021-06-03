@@ -105,10 +105,18 @@ namespace FileIO
                         case 3:
                             {
                                 var buffer = line[..comaAt];
-                                if (Utf8Parser.TryParse(buffer, out DateTime value, out var bytesConsumed))
+                                if (DateTime.TryParse(Encoding.UTF8.GetString(line[..comaAt]), out var doj))
+
                                 {
-                                    record.DateOfJoining = value;
+                                    record.DateOfJoining = doj;
                                 }
+                                // Can't use Utf8 parser to extract datetime field because csv format doesn't have time
+                                //https://docs.microsoft.com/en-us/dotnet/api/system.buffers.text.utf8parser.tryparse?view=net-5.0#System_Buffers_Text_Utf8Parser_TryParse_System_ReadOnlySpan_System_Byte__System_DateTime__System_Int32__System_Char_
+
+                                // if (Utf8Parser.TryParse(buffer, out DateTime value, out var bytesConsumed))
+                                // {
+                                //     record.DateOfJoining = value;
+                                // }
                                 break;
                             }
 
