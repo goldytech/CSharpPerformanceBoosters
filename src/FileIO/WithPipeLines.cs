@@ -23,6 +23,25 @@ namespace FileIO
             if (!File.Exists(filePath)) return position;
             await using var fileStream = File.OpenRead(filePath);
             var pipeReader = PipeReader.Create(fileStream);
+            return await ReadFromPipe(pipeReader, employeeRecords, position);
+        }
+
+        public async Task<int> ProcessWithFullPipeAsync(string filePath, Employee[] employeeRecords)
+        {
+            var position = 0;
+            if (!File.Exists(filePath)) return position;
+            await using var fileStream = File.OpenRead(filePath);
+            Pipe p = new();
+            var fillPipe = FillPipe(fileStream, p.Writer);
+            var readPipe = ReadFromPipe(p.Reader, employeeRecords, position);
+            await Task.WhenAll(fillPipe, readPipe);
+
+            return await readPipe;
+        }
+
+        private static async Task<int> ReadFromPipe(PipeReader pipeReader, Employee[] employeeRecords, int position)
+        {
+            int pos = position;
             while (true)
             {
                 var fileData = await pipeReader.ReadAsync();
@@ -30,7 +49,7 @@ namespace FileIO
                 // convert to Buffer
                 var fileDataBuffer = fileData.Buffer;
 
-                var sequencePosition = ParseLines(employeeRecords, fileDataBuffer, ref position);
+                var sequencePosition = ParseLines(employeeRecords, fileDataBuffer, ref pos);
 
                 pipeReader.AdvanceTo(sequencePosition, fileDataBuffer.End);
 
@@ -40,8 +59,14 @@ namespace FileIO
                 }
             }
 
-            await pipeReader.CompleteAsync(); // marking pipereader as Completed
-            return position;
+            await pipeReader.CompleteAsync(); // marking pipe reader as Completed
+            return pos;
+        }
+
+        private async Task FillPipe(FileStream fileStream, PipeWriter writer)
+        {
+            await fileStream.CopyToAsync(writer.AsStream());
+            await writer.CompleteAsync();
         }
 
         private static SequencePosition ParseLines(Employee[] employeeRecords, in ReadOnlySequence<byte> buffer, ref int position)
