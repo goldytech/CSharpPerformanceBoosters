@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -38,7 +39,7 @@ namespace FileIO
                 {
                     Name = employeeLine[0],
                     Email = employeeLine[1],
-                    DateOfJoining = Convert.ToDateTime(employeeLine[2]),
+                    DateOfJoining = Convert.ToDateTime(employeeLine[2], CultureInfo.InvariantCulture.DateTimeFormat),
                     Salary = Convert.ToDouble(employeeLine[3]),
                     Age = Convert.ToInt16(employeeLine[4])
                 })
