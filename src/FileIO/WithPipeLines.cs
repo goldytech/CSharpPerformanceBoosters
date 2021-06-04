@@ -2,6 +2,7 @@
 using System;
 using System.Buffers;
 using System.Buffers.Text;
+using System.Globalization;
 using System.IO;
 using System.IO.Pipelines;
 using System.Text;
@@ -19,10 +20,10 @@ namespace FileIO
         /// <returns>PipeReader Sequence Position</returns>
         public async Task<int> ProcessFileAsync(string filePath, Employee[] employeeRecords)
         {
+            const int BufferSize = 0x10000;
             var position = 0;
-            if (!File.Exists(filePath)) return position;
-            await using var fileStream = File.OpenRead(filePath);
-            var pipeReader = PipeReader.Create(fileStream);
+            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize);
+            var pipeReader = PipeReader.Create(fileStream, new StreamPipeReaderOptions(bufferSize: BufferSize));
             while (true)
             {
                 var fileData = await pipeReader.ReadAsync();
@@ -47,14 +48,16 @@ namespace FileIO
         private static SequencePosition ParseLines(Employee[] employeeRecords, in ReadOnlySequence<byte> buffer, ref int position)
         {
             var reader = new SequenceReader<byte>(buffer);
+            ReadOnlySpan<byte> line;
 
+            // skip the header row
+            reader.TryReadTo(out line, (byte)'\n', true);
             // Read the whole line till the new line is found
-            while (reader.TryReadTo(out ReadOnlySpan<byte> line, (byte)'\n', true))
+            while (reader.TryReadTo(out line, (byte)'\n', true))
             {
                 var employee = LineParser.ParseLine(line); // we have a line to parse
 
-                if (employee is { }) // if the returned value is valid Employee object
-                    employeeRecords[position++] = employee.Value;
+                employeeRecords[position++] = employee;
             }
 
             return reader.Position; // returning the Last position of the reader
@@ -63,16 +66,9 @@ namespace FileIO
         private static class LineParser
         {
             private const byte Coma = (byte)',';
-            private static readonly byte[] ColumnHeaders = Encoding.UTF8.GetBytes("Name,Email,DateOfJoining,Salary,Age");
 
-            public static Employee? ParseLine(ReadOnlySpan<byte> line)
+            public static Employee ParseLine(ReadOnlySpan<byte> line)
             {
-                // REVIEW: There are better ways to do this
-                if (line.IndexOf(ColumnHeaders) >= 0) // Ignore the Header row
-                {
-                    return null;
-                }
-
                 // Trim \r (if it exists)
                 line = line.TrimEnd((byte)'\r');
 
@@ -104,19 +100,17 @@ namespace FileIO
                             }
                         case 3:
                             {
+                                // stand on our heads to avoid allocating a temp string to parse the date
                                 var buffer = line[..comaAt];
-                                if (DateTime.TryParse(Encoding.UTF8.GetString(line[..comaAt]), out var doj))
-
+                                Span<char> chars = stackalloc char[buffer.Length];
+                                for (int i = 0; i < buffer.Length; i++)
+                                {
+                                    chars[i] = (char)buffer[i];
+                                }
+                                if (DateTime.TryParse(chars, out var doj))
                                 {
                                     record.DateOfJoining = doj;
                                 }
-                                // Can't use Utf8 parser to extract datetime field because csv format doesn't have time
-                                //https://docs.microsoft.com/en-us/dotnet/api/system.buffers.text.utf8parser.tryparse?view=net-5.0#System_Buffers_Text_Utf8Parser_TryParse_System_ReadOnlySpan_System_Byte__System_DateTime__System_Int32__System_Char_
-
-                                // if (Utf8Parser.TryParse(buffer, out DateTime value, out var bytesConsumed))
-                                // {
-                                //     record.DateOfJoining = value;
-                                // }
                                 break;
                             }
 
