@@ -40,6 +40,23 @@ namespace FileIO.Benchmarks
         }
 
         [Benchmark]
+        public async Task FullPipe()
+        {
+            var pool = ArrayPool<Employee>.Shared;
+            var employeeRecords = pool.Rent(100000);
+            var pipeLinesTest = new WithPipeLines();
+
+            try
+            {
+                await pipeLinesTest.ProcessWithFullPipeAsync(_filePath, employeeRecords);
+            }
+            finally
+            {
+                pool.Return(employeeRecords, clearArray: true);
+            }
+        }
+
+        [Benchmark]
         public async Task<IList<Employee>> AsyncStream()
         { 
           //  var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
