@@ -2,7 +2,6 @@
 using System;
 using System.Buffers;
 using System.Buffers.Text;
-using System.Globalization;
 using System.IO;
 using System.IO.Pipelines;
 using System.Text;
@@ -65,79 +64,48 @@ namespace FileIO
 
         private static class LineParser
         {
-            private const byte Coma = (byte)',';
+            private const byte Comma = (byte)',';
 
             public static Employee ParseLine(ReadOnlySpan<byte> line)
             {
                 // Trim \r (if it exists)
                 line = line.TrimEnd((byte)'\r');
 
-                var fieldCount = 1;
-
                 var record = new Employee();
 
-                while (fieldCount <= 5) // we have five fields in csv file
+                var idx = line.IndexOf(Comma);
+
+                record.Name = Encoding.UTF8.GetString(line[..idx]);
+                line = line[(idx + 1)..];
+                idx = line.IndexOf(Comma);
+                record.Email = Encoding.UTF8.GetString(line[..idx]);
+                line = line[(idx + 1)..];
+                idx = line.IndexOf(Comma);
+
+                // stand on our heads to avoid allocating a temp string to parse the date
+                var buffer = line[..idx];
+                Span<char> chars = stackalloc char[buffer.Length];
+                for (int i = 0; i < buffer.Length; i++)
                 {
-                    var comaAt = line.IndexOf(Coma);
-                    if (comaAt < 0) // No more comas are found we have reached the last field.
-                    {
-                        comaAt = line.Length;
-                    }
+                    chars[i] = (char)buffer[i];
+                }
+                if (DateTime.TryParse(chars, out var doj))
+                {
+                    record.DateOfJoining = doj;
+                }
+                line = line[(idx + 1)..];
+                idx = line.IndexOf(Comma);
 
-                    switch (fieldCount)
-                    {
-                        case 1:
-                            {
-                                var value = Encoding.UTF8.GetString(line[..comaAt]);
-                                record.Name = value;
-                                break;
-                            }
-                        case 2:
-                            {
-                                var value = Encoding.UTF8.GetString(line[..comaAt]);
-                                record.Email = value;
-                                break;
-                            }
-                        case 3:
-                            {
-                                // stand on our heads to avoid allocating a temp string to parse the date
-                                var buffer = line[..comaAt];
-                                Span<char> chars = stackalloc char[buffer.Length];
-                                for (int i = 0; i < buffer.Length; i++)
-                                {
-                                    chars[i] = (char)buffer[i];
-                                }
-                                if (DateTime.TryParse(chars, out var doj))
-                                {
-                                    record.DateOfJoining = doj;
-                                }
-                                break;
-                            }
+                if (Utf8Parser.TryParse(line[..idx], out double salary, out _))
+                {
+                    record.Salary = salary;
+                }
 
-                        case 4:
-                            {
-                                var buffer = line[..comaAt];
-                                if (Utf8Parser.TryParse(buffer, out double value, out var bytesConsumed))
-                                {
-                                    record.Salary = value;
-                                }
-                                break;
-                            }
+                line = line[(idx + 1)..];
 
-                        case 5:
-                            {
-                                var buffer = line[..comaAt];
-                                if (Utf8Parser.TryParse(buffer, out short value, out var bytesConsumed))
-                                {
-                                    record.Age = value;
-                                }
-                                return record;
-                            }
-                    }
-
-                    line = line[(comaAt + 1)..]; // slice past field
-
-                    fieldCount++;
+                if (Utf8Parser.TryParse(line, out short age, out _))
+                {
+                    record.Age = age;
                 }
 
                 return record;
