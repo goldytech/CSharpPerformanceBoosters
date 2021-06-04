@@ -13,18 +13,11 @@ namespace FileIO.Benchmarks
     [RankColumn()]
     public class FileIOTest
     {
-        private string _filePath;
-        [GlobalSetup]
-        public void Setup()
-        {
-            var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
-            _filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
-        }
+        private string _filePath = "Employees.csv";
+
         [Benchmark]
         public async Task PipeLines()
         {
-           // var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
-            //_filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
             var pool = ArrayPool<Employee>.Shared;
             var employeeRecords = pool.Rent(100000);
             var pipeLinesTest = new WithPipeLines();
@@ -41,19 +34,15 @@ namespace FileIO.Benchmarks
 
         [Benchmark]
         public async Task<IList<Employee>> AsyncStream()
-        { 
-          //  var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
-           // _filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
+        {
             var asyncStream = new WithAsyncStreams();
-           var employees = await asyncStream.ProcessStreamAsync(_filePath);
-           return employees;
+            var employees = await asyncStream.ProcessStreamAsync(_filePath);
+            return employees;
         }
 
         [Benchmark]
         public void CsvHelper()
         {
-          //  var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
-            //_filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
             var csvHelper = new WithCsvHelperLib();
             var employeesList = csvHelper.ProcessFileAsync(_filePath);
 
@@ -62,15 +51,33 @@ namespace FileIO.Benchmarks
         [Benchmark]
         public void Sylvan()
         {
-            var directoryPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))?.Location);
-            _filePath = Path.Combine(directoryPath ?? string.Empty, "Employees.csv");
             var sylv = new WithSylvanLib();
             var pool = ArrayPool<Employee>.Shared;
             var employeeRecords = pool.Rent(100000);
 
-            try {
+            try
+            {
                 sylv.ProcessFile(_filePath, employeeRecords);
-            } finally {
+            }
+            finally
+            {
+                pool.Return(employeeRecords, true);
+            }
+        }
+
+        [Benchmark]
+        public async Task SylvanAsync()
+        {
+            var sylv = new WithSylvanLib();
+            var pool = ArrayPool<Employee>.Shared;
+            var employeeRecords = pool.Rent(100000);
+
+            try
+            {
+                await sylv.ProcessFileAsync(_filePath, employeeRecords);
+            }
+            finally
+            {
                 pool.Return(employeeRecords, true);
             }
         }
